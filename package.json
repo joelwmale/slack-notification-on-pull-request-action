@@ -3,7 +3,6 @@
     "version": "1.0.0",
     "description": "Slack Notification on Pull Request",
     "main": "dist/main.js",
-    "type": "module",
     "scripts": {
         "build": "tsc",
         "format": "prettier --write **/*.ts",

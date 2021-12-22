@@ -62,8 +62,8 @@ function run() {
         var slackWebhookUrl, slackChannel, slackUsername, pullRequestNumber, pullRequestTitle, pullRequestUrl, pullRequestAuthor, pullRequestAuthorIconUrl, payload;
         return __generator(this, function (_a) {
             slackWebhookUrl = core.getInput('SLACK_WEBHOOK_URL') ? core.getInput('SLACK_WEBHOOK_URL') : process.env.SLACK_WEBHOOK_URL;
-            slackChannel = core.getInput('SLACK_CHANNEL') ? core.getInput('SLACK_CHANNEL') : 'general';
-            slackUsername = core.getInput('SLACK_USERNAME') ? core.getInput('SLACK_USERNAME') : 'SlackNotifications';
+            slackChannel = core.getInput('SLACK_CHANNEL') ? core.getInput('SLACK_CHANNEL') : (process.env.SLACK_CHANNEL || 'general');
+            slackUsername = core.getInput('SLACK_USERNAME') ? core.getInput('SLACK_USERNAME') : (process.env.SLACK_USERNAME || 'SlackNotifications');
             pullRequestNumber = core.getInput('PULL_REQUEST_NUMBER') ? core.getInput('PULL_REQUEST_NUMBER') : process.env.PULL_REQUEST_NUMBER;
             pullRequestTitle = core.getInput('PULL_REQUEST_TITLE') ? core.getInput('PULL_REQUEST_TITLE') : process.env.PULL_REQUEST_TITLE;
             pullRequestUrl = core.getInput('PULL_REQUEST_URL') ? core.getInput('PULL_REQUEST_URL') : process.env.PULL_REQUEST_URL;

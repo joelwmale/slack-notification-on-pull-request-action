@@ -3,8 +3,8 @@ const axios = require('axios').default;
 
 async function run() {
   const slackWebhookUrl = core.getInput('SLACK_WEBHOOK_URL') ? core.getInput('SLACK_WEBHOOK_URL') : process.env.SLACK_WEBHOOK_URL;
-  const slackChannel = core.getInput('SLACK_CHANNEL') ? core.getInput('SLACK_CHANNEL') : 'general';
-  const slackUsername = core.getInput('SLACK_USERNAME') ? core.getInput('SLACK_USERNAME') : 'SlackNotifications';
+  const slackChannel = core.getInput('SLACK_CHANNEL') ? core.getInput('SLACK_CHANNEL') : (process.env.SLACK_CHANNEL || 'general');
+  const slackUsername = core.getInput('SLACK_USERNAME') ? core.getInput('SLACK_USERNAME') : (process.env.SLACK_USERNAME || 'SlackNotifications');
 
   const pullRequestNumber = core.getInput('PULL_REQUEST_NUMBER') ? core.getInput('PULL_REQUEST_NUMBER') : process.env.PULL_REQUEST_NUMBER;
   const pullRequestTitle = core.getInput('PULL_REQUEST_TITLE') ? core.getInput('PULL_REQUEST_TITLE') : process.env.PULL_REQUEST_TITLE;
@@ -20,7 +20,8 @@ async function run() {
   }
 
   // initial info
-  core.info(`Sending slack notification to ${slackWebhookUrl}`);
+  core.info(`Sending slack notification to ${
+    slackWebhookUrl}`);
 
   // debug start
   core.debug(new Date().toTimeString()) // debug is only output if you set the secret `ACTIONS_RUNNER_DEBUG` to true
