@@ -1,0 +1,37 @@
+name: 'Slack Notification on Pull Request'
+author: "Joel Male"
+description: 'Send a Slack Notification on Pull Request'
+branding:
+  icon: 'alert-octagon'  
+  color: 'gray-dark'
+inputs:
+  slack_webhook_url:
+    description: 'The slack webhook url to send to.'
+    required: true
+  slack_channel:
+    description: 'The channel to send the notification to.'
+    required: true
+  slack_username:
+    description: 'The username to send the slack webhook as'
+    required: false
+  pull_request_number:
+    description: 'The pull request number from the event'
+    required: true
+  pull_request_title:
+    description: 'The pull request title from the event'
+    required: true
+  pull_request_url:
+    description: 'The pull request url from the event'
+    required: true
+  pull_request_author:
+    description: 'The pull request author from the event'
+    required: true
+  pull_request_author_icon_url:
+    description: 'The pull request authors icon url from the event'
+    required: true
+outputs:
+  status: 
+    description: 'The status of the request'
+runs:
+  using: 'node12'
+  main: 'dist/main.js'
