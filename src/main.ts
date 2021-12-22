@@ -1,5 +1,5 @@
 import * as core from '@actions/core'
-const fetch = require('node-fetch')
+const axios = require('axios').default;
 
 async function run() {
   const slackWebhookUrl = core.getInput('SLACK_WEBHOOK_URL') ? core.getInput('SLACK_WEBHOOK_URL') : process.env.SLACK_WEBHOOK_URL;
@@ -25,7 +25,7 @@ async function run() {
   // debug start
   core.debug(new Date().toTimeString()) // debug is only output if you set the secret `ACTIONS_RUNNER_DEBUG` to true
 
-  const payload = JSON.stringify({
+  const payload = {
     channel: slackChannel,
     username: slackUsername,
     attachments: [
@@ -75,10 +75,10 @@ async function run() {
         ]
       }
     ]
-  });
+  };
 
   // make the request
-  make(slackWebhookUrl, payload)
+  axios.post(slackWebhookUrl, payload)
     .then(res => {
       // if the status code is not 2xx
       if (res.status >= 400) {
@@ -98,29 +98,6 @@ async function run() {
       error(err.status)
       return
     })
-}
-
-function make(url: string, body: Object): Promise<any> {
-  return new Promise((resolve, reject) => {
-    fetch(
-      url,
-      getOptions('post', body)
-    ).then((res: Response) => resolve(res))
-  })
-}
-
-function getOptions(method: string, payload: Object) {
-  const options: any = {
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    method
-  }
-
-  // set the body
-  options.body = JSON.stringify(payload)
-
-  return options
 }
 
 function error(statusCode) {

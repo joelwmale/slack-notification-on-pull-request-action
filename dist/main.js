@@ -56,7 +56,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 var core = __importStar(require("@actions/core"));
-var fetch = require('node-fetch');
+var axios = require('axios').default;
 function run() {
     return __awaiter(this, void 0, void 0, function () {
         var slackWebhookUrl, slackChannel, slackUsername, pullRequestNumber, pullRequestTitle, pullRequestUrl, pullRequestAuthor, pullRequestAuthorIconUrl, payload;
@@ -79,7 +79,7 @@ function run() {
             core.info("Sending slack notification to ".concat(slackWebhookUrl));
             // debug start
             core.debug(new Date().toTimeString()); // debug is only output if you set the secret `ACTIONS_RUNNER_DEBUG` to true
-            payload = JSON.stringify({
+            payload = {
                 channel: slackChannel,
                 username: slackUsername,
                 attachments: [
@@ -129,9 +129,9 @@ function run() {
                         ]
                     }
                 ]
-            });
+            };
             // make the request
-            make(slackWebhookUrl, payload)
+            axios.post(slackWebhookUrl, payload)
                 .then(function (res) {
                 // if the status code is not 2xx
                 if (res.status >= 400) {
@@ -153,22 +153,6 @@ function run() {
             return [2 /*return*/];
         });
     });
-}
-function make(url, body) {
-    return new Promise(function (resolve, reject) {
-        fetch(url, getOptions('post', body)).then(function (res) { return resolve(res); });
-    });
-}
-function getOptions(method, payload) {
-    var options = {
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        method: method
-    };
-    // set the body
-    options.body = JSON.stringify(payload);
-    return options;
 }
 function error(statusCode) {
     // set the action to failed
