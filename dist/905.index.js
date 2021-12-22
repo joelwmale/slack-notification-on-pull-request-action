@@ -14,12 +14,12 @@ __webpack_require__.d(__webpack_exports__, {
   "toFormData": () => (/* binding */ toFormData)
 });
 
-// EXTERNAL MODULE: external "fs"
-var external_fs_ = __webpack_require__(147);
-// EXTERNAL MODULE: external "path"
-var external_path_ = __webpack_require__(17);
-// EXTERNAL MODULE: external "worker_threads"
-var external_worker_threads_ = __webpack_require__(267);
+// EXTERNAL MODULE: external "node:fs"
+var external_node_fs_ = __webpack_require__(561);
+// EXTERNAL MODULE: external "node:path"
+var external_node_path_ = __webpack_require__(411);
+// EXTERNAL MODULE: external "node:worker_threads"
+var external_node_worker_threads_ = __webpack_require__(86);
 // EXTERNAL MODULE: ./node_modules/fetch-blob/file.js
 var fetch_blob_file = __webpack_require__(213);
 // EXTERNAL MODULE: ./node_modules/fetch-blob/index.js
@@ -32,54 +32,53 @@ var fetch_blob = __webpack_require__(410);
 
 
 
-const {stat} = external_fs_.promises;
+const { stat } = external_node_fs_.promises
 
 const DOMException = globalThis.DOMException || (() => {
-	const port = new external_worker_threads_.MessageChannel().port1
-	const ab = new ArrayBuffer(0)
-	try { port.postMessage(ab, [ab, ab]) }
-	catch (err) { return err.constructor }
+  const port = new external_node_worker_threads_.MessageChannel().port1
+  const ab = new ArrayBuffer(0)
+  try { port.postMessage(ab, [ab, ab]) } catch (err) { return err.constructor }
 })()
 
 /**
  * @param {string} path filepath on the disk
  * @param {string} [type] mimetype to use
  */
-const blobFromSync = (path, type) => fromBlob(statSync(path), path, type);
+const blobFromSync = (path, type) => fromBlob(statSync(path), path, type)
 
 /**
  * @param {string} path filepath on the disk
  * @param {string} [type] mimetype to use
  */
-const blobFrom = (path, type) => stat(path).then(stat => fromBlob(stat, path, type));
+const blobFrom = (path, type) => stat(path).then(stat => fromBlob(stat, path, type))
 
 /**
  * @param {string} path filepath on the disk
  * @param {string} [type] mimetype to use
  */
-const fileFrom = (path, type) => stat(path).then(stat => fromFile(stat, path, type));
+const fileFrom = (path, type) => stat(path).then(stat => fromFile(stat, path, type))
 
 /**
  * @param {string} path filepath on the disk
  * @param {string} [type] mimetype to use
  */
-const fileFromSync = (path, type) => fromFile(statSync(path), path, type);
+const fileFromSync = (path, type) => fromFile(statSync(path), path, type)
 
 // @ts-ignore
 const fromBlob = (stat, path, type = '') => new Blob([new BlobDataItem({
-	path,
-	size: stat.size,
-	lastModified: stat.mtimeMs,
-	start: 0
-})], {type});
+  path,
+  size: stat.size,
+  lastModified: stat.mtimeMs,
+  start: 0
+})], { type })
 
 // @ts-ignore
 const fromFile = (stat, path, type = '') => new File([new BlobDataItem({
-	path,
-	size: stat.size,
-	lastModified: stat.mtimeMs,
-	start: 0
-})], basename(path), { type, lastModified: stat.mtimeMs });
+  path,
+  size: stat.size,
+  lastModified: stat.mtimeMs,
+  start: 0
+})], basename(path), { type, lastModified: stat.mtimeMs })
 
 /**
  * This is a blob backed up by a file on the disk
@@ -89,43 +88,43 @@ const fromFile = (stat, path, type = '') => new File([new BlobDataItem({
  * @private
  */
 class BlobDataItem {
-	#path;
-	#start;
+  #path
+  #start
 
-	constructor(options) {
-		this.#path = options.path;
-		this.#start = options.start;
-		this.size = options.size;
-		this.lastModified = options.lastModified
-	}
+  constructor (options) {
+    this.#path = options.path
+    this.#start = options.start
+    this.size = options.size
+    this.lastModified = options.lastModified
+  }
 
-	/**
-	 * Slicing arguments is first validated and formatted
-	 * to not be out of range by Blob.prototype.slice
-	 */
-	slice(start, end) {
-		return new BlobDataItem({
-			path: this.#path,
-			lastModified: this.lastModified,
-			size: end - start,
-			start
-		});
-	}
+  /**
+   * Slicing arguments is first validated and formatted
+   * to not be out of range by Blob.prototype.slice
+   */
+  slice (start, end) {
+    return new BlobDataItem({
+      path: this.#path,
+      lastModified: this.lastModified,
+      size: end - start,
+      start
+    })
+  }
 
-	async * stream() {
-		const {mtimeMs} = await stat(this.#path)
-		if (mtimeMs > this.lastModified) {
-			throw new DOMException('The requested file could not be read, typically due to permission problems that have occurred after a reference to a file was acquired.', 'NotReadableError');
-		}
-		yield * createReadStream(this.#path, {
-			start: this.#start,
-			end: this.#start + this.size - 1
-		});
-	}
+  async * stream () {
+    const { mtimeMs } = await stat(this.#path)
+    if (mtimeMs > this.lastModified) {
+      throw new DOMException('The requested file could not be read, typically due to permission problems that have occurred after a reference to a file was acquired.', 'NotReadableError')
+    }
+    yield * createReadStream(this.#path, {
+      start: this.#start,
+      end: this.#start + this.size - 1
+    })
+  }
 
-	get [Symbol.toStringTag]() {
-		return 'Blob';
-	}
+  get [Symbol.toStringTag] () {
+    return 'Blob'
+  }
 }
 
 /* harmony default export */ const from = ((/* unused pure expression or super */ null && (blobFromSync)));

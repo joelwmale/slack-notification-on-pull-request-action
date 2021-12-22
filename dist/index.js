@@ -1734,7 +1734,7 @@ exports.debug = debug; // for test
 /***/ (function(__unused_webpack_module, exports) {
 
 /**
- * web-streams-polyfill v3.1.0
+ * web-streams-polyfill v3.2.0
  */
 (function (global, factory) {
      true ? factory(exports) :
@@ -2935,6 +2935,9 @@ exports.debug = debug; // for test
                 ReadableByteStreamControllerEnqueueChunkToQueue(controller, transferredBuffer, byteOffset, byteLength);
             }
             else {
+                if (controller._pendingPullIntos.length > 0) {
+                    ReadableByteStreamControllerShiftPendingPullInto(controller);
+                }
                 const transferredView = new Uint8Array(transferredBuffer, byteOffset, byteLength);
                 ReadableStreamFulfillReadRequest(stream, transferredView, false);
             }
@@ -3020,8 +3023,9 @@ exports.debug = debug; // for test
         if (firstDescriptor.bytesFilled + view.byteLength > firstDescriptor.byteLength) {
             throw new RangeError('The region specified by view is larger than byobRequest');
         }
+        const viewByteLength = view.byteLength;
         firstDescriptor.buffer = TransferArrayBuffer(view.buffer);
-        ReadableByteStreamControllerRespondInternal(controller, view.byteLength);
+        ReadableByteStreamControllerRespondInternal(controller, viewByteLength);
     }
     function SetUpReadableByteStreamController(stream, controller, startAlgorithm, pullAlgorithm, cancelAlgorithm, highWaterMark, autoAllocateChunkSize) {
         controller._controlledReadableByteStream = stream;
@@ -3948,6 +3952,10 @@ exports.debug = debug; // for test
         }
         /**
          * The reason which was passed to `WritableStream.abort(reason)` when the stream was aborted.
+         *
+         * @deprecated
+         *  This property has been removed from the specification, see https://github.com/whatwg/streams/pull/1177.
+         *  Use {@link WritableStreamDefaultController.signal}'s `reason` instead.
          */
         get abortReason() {
             if (!IsWritableStreamDefaultController(this)) {
@@ -4001,6 +4009,8 @@ exports.debug = debug; // for test
         }
     }
     Object.defineProperties(WritableStreamDefaultController.prototype, {
+        abortReason: { enumerable: true },
+        signal: { enumerable: true },
         error: { enumerable: true }
     });
     if (typeof SymbolPolyfill.toStringTag === 'symbol') {
@@ -4742,6 +4752,7 @@ exports.debug = debug; // for test
     function ReadableStreamDefaultTee(stream, cloneForBranch2) {
         const reader = AcquireReadableStreamDefaultReader(stream);
         let reading = false;
+        let readAgain = false;
         let canceled1 = false;
         let canceled2 = false;
         let reason1;
@@ -4754,6 +4765,7 @@ exports.debug = debug; // for test
         });
         function pullAlgorithm() {
             if (reading) {
+                readAgain = true;
                 return promiseResolvedWith(undefined);
             }
             reading = true;
@@ -4763,7 +4775,7 @@ exports.debug = debug; // for test
                     // reader._closedPromise below), and we want errors in stream to error both branches immediately. We cannot let
                     // successful synchronously-available reads get ahead of asynchronously-available errors.
                     queueMicrotask(() => {
-                        reading = false;
+                        readAgain = false;
                         const chunk1 = chunk;
                         const chunk2 = chunk;
                         // There is no way to access the cloning code right now in the reference implementation.
@@ -4776,6 +4788,10 @@ exports.debug = debug; // for test
                         }
                         if (!canceled2) {
                             ReadableStreamDefaultControllerEnqueue(branch2._readableStreamController, chunk2);
+                        }
+                        reading = false;
+                        if (readAgain) {
+                            pullAlgorithm();
                         }
                     });
                 },
@@ -4835,6 +4851,8 @@ exports.debug = debug; // for test
     function ReadableByteStreamTee(stream) {
         let reader = AcquireReadableStreamDefaultReader(stream);
         let reading = false;
+        let readAgainForBranch1 = false;
+        let readAgainForBranch2 = false;
         let canceled1 = false;
         let canceled2 = false;
         let reason1;
@@ -4869,7 +4887,8 @@ exports.debug = debug; // for test
                     // reader._closedPromise below), and we want errors in stream to error both branches immediately. We cannot let
                     // successful synchronously-available reads get ahead of asynchronously-available errors.
                     queueMicrotask(() => {
-                        reading = false;
+                        readAgainForBranch1 = false;
+                        readAgainForBranch2 = false;
                         const chunk1 = chunk;
                         let chunk2 = chunk;
                         if (!canceled1 && !canceled2) {
@@ -4888,6 +4907,13 @@ exports.debug = debug; // for test
                         }
                         if (!canceled2) {
                             ReadableByteStreamControllerEnqueue(branch2._readableStreamController, chunk2);
+                        }
+                        reading = false;
+                        if (readAgainForBranch1) {
+                            pull1Algorithm();
+                        }
+                        else if (readAgainForBranch2) {
+                            pull2Algorithm();
                         }
                     });
                 },
@@ -4929,7 +4955,8 @@ exports.debug = debug; // for test
                     // reader._closedPromise below), and we want errors in stream to error both branches immediately. We cannot let
                     // successful synchronously-available reads get ahead of asynchronously-available errors.
                     queueMicrotask(() => {
-                        reading = false;
+                        readAgainForBranch1 = false;
+                        readAgainForBranch2 = false;
                         const byobCanceled = forBranch2 ? canceled2 : canceled1;
                         const otherCanceled = forBranch2 ? canceled1 : canceled2;
                         if (!otherCanceled) {
@@ -4950,6 +4977,13 @@ exports.debug = debug; // for test
                         }
                         else if (!byobCanceled) {
                             ReadableByteStreamControllerRespondWithNewView(byobBranch._readableStreamController, chunk);
+                        }
+                        reading = false;
+                        if (readAgainForBranch1) {
+                            pull1Algorithm();
+                        }
+                        else if (readAgainForBranch2) {
+                            pull2Algorithm();
                         }
                     });
                 },
@@ -4983,6 +5017,7 @@ exports.debug = debug; // for test
         }
         function pull1Algorithm() {
             if (reading) {
+                readAgainForBranch1 = true;
                 return promiseResolvedWith(undefined);
             }
             reading = true;
@@ -4997,6 +5032,7 @@ exports.debug = debug; // for test
         }
         function pull2Algorithm() {
             if (reading) {
+                readAgainForBranch2 = true;
                 return promiseResolvedWith(undefined);
             }
             reading = true;
@@ -5957,6 +5993,46 @@ module.exports = require("net");
 
 /***/ }),
 
+/***/ 561:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("node:fs");
+
+/***/ }),
+
+/***/ 411:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("node:path");
+
+/***/ }),
+
+/***/ 742:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("node:process");
+
+/***/ }),
+
+/***/ 477:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("node:stream/web");
+
+/***/ }),
+
+/***/ 86:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("node:worker_threads");
+
+/***/ }),
+
 /***/ 37:
 /***/ ((module) => {
 
@@ -5970,14 +6046,6 @@ module.exports = require("os");
 
 "use strict";
 module.exports = require("path");
-
-/***/ }),
-
-/***/ 356:
-/***/ ((module) => {
-
-"use strict";
-module.exports = require("stream/web");
 
 /***/ }),
 
@@ -5997,52 +6065,58 @@ module.exports = require("util");
 
 /***/ }),
 
-/***/ 267:
-/***/ ((module) => {
-
-"use strict";
-module.exports = require("worker_threads");
-
-/***/ }),
-
 /***/ 572:
 /***/ ((__unused_webpack_module, __unused_webpack_exports, __nccwpck_require__) => {
 
 /* c8 ignore start */
 // 64 KiB (same size chrome slice theirs blob into Uint8array's)
-const POOL_SIZE = 65536;
+const POOL_SIZE = 65536
 
 if (!globalThis.ReadableStream) {
+  // `node:stream/web` got introduced in v16.5.0 as experimental
+  // and it's preferred over the polyfilled version. So we also
+  // suppress the warning that gets emitted by NodeJS for using it.
   try {
-    Object.assign(globalThis, __nccwpck_require__(356))
+    const process = __nccwpck_require__(742)
+    const { emitWarning } = process
+    try {
+      process.emitWarning = () => {}
+      Object.assign(globalThis, __nccwpck_require__(477))
+      process.emitWarning = emitWarning
+    } catch (error) {
+      process.emitWarning = emitWarning
+      throw error
+    }
   } catch (error) {
-		// TODO: Remove when only supporting node >= 16.5.0
+    // fallback to polyfill implementation
     Object.assign(globalThis, __nccwpck_require__(452))
   }
 }
 
 try {
-  const {Blob} = __nccwpck_require__(300)
+  // Don't use node: prefix for this, require+node: is not supported until node v14.14
+  // Only `import()` can use prefix in 12.20 and later
+  const { Blob } = __nccwpck_require__(300)
   if (Blob && !Blob.prototype.stream) {
-		Blob.prototype.stream = function name(params) {
-			let position = 0;
-			const blob = this;
+    Blob.prototype.stream = function name (params) {
+      let position = 0
+      const blob = this
 
-			return new ReadableStream({
-				type: 'bytes',
-				async pull(ctrl) {
-					const chunk = blob.slice(position, Math.min(blob.size, position + POOL_SIZE));
-					const buffer = await chunk.arrayBuffer();
-					position += buffer.byteLength;
-					ctrl.enqueue(new Uint8Array(buffer))
+      return new ReadableStream({
+        type: 'bytes',
+        async pull (ctrl) {
+          const chunk = blob.slice(position, Math.min(blob.size, position + POOL_SIZE))
+          const buffer = await chunk.arrayBuffer()
+          position += buffer.byteLength
+          ctrl.enqueue(new Uint8Array(buffer))
 
-					if (position === blob.size) {
-						ctrl.close()
-					}
-				}
-			})
-		}
-	}
+          if (position === blob.size) {
+            ctrl.close()
+          }
+        }
+      })
+    }
+  }
 } catch (error) {}
 /* c8 ignore end */
 
@@ -6061,40 +6135,46 @@ try {
 
 
 const _File = class File extends _index_js__WEBPACK_IMPORTED_MODULE_0__/* ["default"] */ .Z {
-  #lastModified = 0;
-  #name = '';
+  #lastModified = 0
+  #name = ''
 
   /**
    * @param {*[]} fileBits
    * @param {string} fileName
    * @param {{lastModified?: number, type?: string}} options
    */// @ts-ignore
-  constructor(fileBits, fileName, options = {}) {
+  constructor (fileBits, fileName, options = {}) {
     if (arguments.length < 2) {
-      throw new TypeError(`Failed to construct 'File': 2 arguments required, but only ${arguments.length} present.`);
+      throw new TypeError(`Failed to construct 'File': 2 arguments required, but only ${arguments.length} present.`)
     }
-    super(fileBits, options);
+    super(fileBits, options)
 
-    const modified = Number(options.lastModified);
-    this.#lastModified = Number.isNaN(modified) ? Date.now() : modified
-    this.#name = fileName;
+    if (options === null) options = {}
+
+    // Simulate WebIDL type casting for NaN value in lastModified option.
+    const lastModified = options.lastModified === undefined ? Date.now() : Number(options.lastModified)
+    if (!Number.isNaN(lastModified)) {
+      this.#lastModified = lastModified
+    }
+
+    this.#name = String(fileName)
   }
 
-  get name() {
-    return this.#name;
+  get name () {
+    return this.#name
   }
 
-  get lastModified() {
-    return this.#lastModified;
+  get lastModified () {
+    return this.#lastModified
   }
 
-  get [Symbol.toStringTag]() {
-    return "File";
+  get [Symbol.toStringTag] () {
+    return 'File'
   }
 }
 
 /** @type {typeof globalThis.File} */// @ts-ignore
-const File = _File;
+const File = _File
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (File);
 
 
@@ -6109,6 +6189,7 @@ const File = _File;
 /* harmony export */ });
 /* unused harmony export Blob */
 /* harmony import */ var _streams_cjs__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(572);
+/*! fetch-blob. MIT License. Jimmy Wärting <https://jimmy.warting.se/opensource> */
 
 // TODO (jimmywarting): in the feature use conditional loading with top level await (requires 14.x)
 // Node has recently added whatwg stream into core
@@ -6118,231 +6199,246 @@ const File = _File;
 /** @typedef {import('buffer').Blob} NodeBlob} */
 
 // 64 KiB (same size chrome slice theirs blob into Uint8array's)
-const POOL_SIZE = 65536;
+const POOL_SIZE = 65536
 
 /** @param {(Blob | NodeBlob | Uint8Array)[]} parts */
 async function * toIterator (parts, clone = true) {
-	for (let part of parts) {
-		if ('stream' in part) {
-			yield * part.stream();
-		} else if (ArrayBuffer.isView(part)) {
-			if (clone) {
-				let position = part.byteOffset;
-				let end = part.byteOffset + part.byteLength;
-				while (position !== end) {
-					const size = Math.min(end - position, POOL_SIZE);
-					const chunk = part.buffer.slice(position, position + size);
-					position += chunk.byteLength;
-					yield new Uint8Array(chunk);
-				}
-			} else {
-				yield part;
-			}
-		} else {
-			/* c8 ignore start */
-			// For blobs that have arrayBuffer but no stream method (nodes buffer.Blob)
-			let position = 0;
-			while (position !== part.size) {
-				const chunk = part.slice(position, Math.min(part.size, position + POOL_SIZE));
-				const buffer = await chunk.arrayBuffer();
-				position += buffer.byteLength;
-				yield new Uint8Array(buffer);
-			}
-			/* c8 ignore end */
-		}
-	}
+  for (const part of parts) {
+    if ('stream' in part) {
+      yield * part.stream()
+    } else if (ArrayBuffer.isView(part)) {
+      if (clone) {
+        let position = part.byteOffset
+        const end = part.byteOffset + part.byteLength
+        while (position !== end) {
+          const size = Math.min(end - position, POOL_SIZE)
+          const chunk = part.buffer.slice(position, position + size)
+          position += chunk.byteLength
+          yield new Uint8Array(chunk)
+        }
+      } else {
+        yield part
+      }
+    } else {
+      /* c8 ignore start */
+      // For blobs that have arrayBuffer but no stream method (nodes buffer.Blob)
+      let position = 0
+      while (position !== part.size) {
+        const chunk = part.slice(position, Math.min(part.size, position + POOL_SIZE))
+        const buffer = await chunk.arrayBuffer()
+        position += buffer.byteLength
+        yield new Uint8Array(buffer)
+      }
+      /* c8 ignore end */
+    }
+  }
 }
 
 const _Blob = class Blob {
+  /** @type {Array.<(Blob|Uint8Array)>} */
+  #parts = []
+  #type = ''
+  #size = 0
 
-	/** @type {Array.<(Blob|Uint8Array)>} */
-	#parts = [];
-	#type = '';
-	#size = 0;
+  /**
+   * The Blob() constructor returns a new Blob object. The content
+   * of the blob consists of the concatenation of the values given
+   * in the parameter array.
+   *
+   * @param {*} blobParts
+   * @param {{ type?: string }} [options]
+   */
+  constructor (blobParts = [], options = {}) {
+    if (typeof blobParts !== 'object' || blobParts === null) {
+      throw new TypeError('Failed to construct \'Blob\': The provided value cannot be converted to a sequence.')
+    }
 
-	/**
-	 * The Blob() constructor returns a new Blob object. The content
-	 * of the blob consists of the concatenation of the values given
-	 * in the parameter array.
-	 *
-	 * @param {*} blobParts
-	 * @param {{ type?: string }} [options]
-	 */
-	constructor(blobParts = [], options = {}) {
-		let size = 0;
+    if (typeof blobParts[Symbol.iterator] !== 'function') {
+      throw new TypeError('Failed to construct \'Blob\': The object must have a callable @@iterator property.')
+    }
 
-		const parts = blobParts.map(element => {
-			let part;
-			if (ArrayBuffer.isView(element)) {
-				part = new Uint8Array(element.buffer.slice(element.byteOffset, element.byteOffset + element.byteLength));
-			} else if (element instanceof ArrayBuffer) {
-				part = new Uint8Array(element.slice(0));
-			} else if (element instanceof Blob) {
-				part = element;
-			} else {
-				part = new TextEncoder().encode(element);
-			}
+    if (typeof options !== 'object' && typeof options !== 'function') {
+      throw new TypeError('Failed to construct \'Blob\': parameter 2 cannot convert to dictionary.')
+    }
 
-			size += ArrayBuffer.isView(part) ? part.byteLength : part.size;
-			return part;
-		});
+    if (options === null) options = {}
 
-		const type = options.type === undefined ? '' : String(options.type);
+    const encoder = new TextEncoder()
+    for (const element of blobParts) {
+      let part
+      if (ArrayBuffer.isView(element)) {
+        part = new Uint8Array(element.buffer.slice(element.byteOffset, element.byteOffset + element.byteLength))
+      } else if (element instanceof ArrayBuffer) {
+        part = new Uint8Array(element.slice(0))
+      } else if (element instanceof Blob) {
+        part = element
+      } else {
+        part = encoder.encode(element)
+      }
 
-		this.#type = /[^\u0020-\u007E]/.test(type) ? '' : type;
-		this.#size = size;
-		this.#parts = parts;
-	}
+      this.#size += ArrayBuffer.isView(part) ? part.byteLength : part.size
+      this.#parts.push(part)
+    }
 
-	/**
-	 * The Blob interface's size property returns the
-	 * size of the Blob in bytes.
-	 */
-	get size() {
-		return this.#size;
-	}
+    const type = options.type === undefined ? '' : String(options.type)
 
-	/**
-	 * The type property of a Blob object returns the MIME type of the file.
-	 */
-	get type() {
-		return this.#type;
-	}
+    this.#type = /^[\x20-\x7E]*$/.test(type) ? type : ''
+  }
 
-	/**
-	 * The text() method in the Blob interface returns a Promise
-	 * that resolves with a string containing the contents of
-	 * the blob, interpreted as UTF-8.
-	 *
-	 * @return {Promise<string>}
-	 */
-	async text() {
-		// More optimized than using this.arrayBuffer()
-		// that requires twice as much ram
-		const decoder = new TextDecoder();
-		let str = '';
-		for await (let part of toIterator(this.#parts, false)) {
-			str += decoder.decode(part, { stream: true });
-		}
-		// Remaining
-		str += decoder.decode();
-		return str;
-	}
+  /**
+   * The Blob interface's size property returns the
+   * size of the Blob in bytes.
+   */
+  get size () {
+    return this.#size
+  }
 
-	/**
-	 * The arrayBuffer() method in the Blob interface returns a
-	 * Promise that resolves with the contents of the blob as
-	 * binary data contained in an ArrayBuffer.
-	 *
-	 * @return {Promise<ArrayBuffer>}
-	 */
-	async arrayBuffer() {
-		// Easier way... Just a unnecessary overhead
-		// const view = new Uint8Array(this.size);
-		// await this.stream().getReader({mode: 'byob'}).read(view);
-		// return view.buffer;
+  /**
+   * The type property of a Blob object returns the MIME type of the file.
+   */
+  get type () {
+    return this.#type
+  }
 
-		const data = new Uint8Array(this.size);
-		let offset = 0;
-		for await (const chunk of toIterator(this.#parts, false)) {
-			data.set(chunk, offset);
-			offset += chunk.length;
-		}
+  /**
+   * The text() method in the Blob interface returns a Promise
+   * that resolves with a string containing the contents of
+   * the blob, interpreted as UTF-8.
+   *
+   * @return {Promise<string>}
+   */
+  async text () {
+    // More optimized than using this.arrayBuffer()
+    // that requires twice as much ram
+    const decoder = new TextDecoder()
+    let str = ''
+    for await (const part of toIterator(this.#parts, false)) {
+      str += decoder.decode(part, { stream: true })
+    }
+    // Remaining
+    str += decoder.decode()
+    return str
+  }
 
-		return data.buffer;
-	}
+  /**
+   * The arrayBuffer() method in the Blob interface returns a
+   * Promise that resolves with the contents of the blob as
+   * binary data contained in an ArrayBuffer.
+   *
+   * @return {Promise<ArrayBuffer>}
+   */
+  async arrayBuffer () {
+    // Easier way... Just a unnecessary overhead
+    // const view = new Uint8Array(this.size);
+    // await this.stream().getReader({mode: 'byob'}).read(view);
+    // return view.buffer;
 
-	stream() {
-		const it = toIterator(this.#parts, true);
+    const data = new Uint8Array(this.size)
+    let offset = 0
+    for await (const chunk of toIterator(this.#parts, false)) {
+      data.set(chunk, offset)
+      offset += chunk.length
+    }
 
-		return new ReadableStream({
-			type: 'bytes',
-			async pull(ctrl) {
-				const chunk = await it.next();
-				chunk.done ? ctrl.close() : ctrl.enqueue(chunk.value);
-			}
-		})
-	}
+    return data.buffer
+  }
 
-	/**
-	 * The Blob interface's slice() method creates and returns a
-	 * new Blob object which contains data from a subset of the
-	 * blob on which it's called.
-	 *
-	 * @param {number} [start]
-	 * @param {number} [end]
-	 * @param {string} [type]
-	 */
-	slice(start = 0, end = this.size, type = '') {
-		const {size} = this;
+  stream () {
+    const it = toIterator(this.#parts, true)
 
-		let relativeStart = start < 0 ? Math.max(size + start, 0) : Math.min(start, size);
-		let relativeEnd = end < 0 ? Math.max(size + end, 0) : Math.min(end, size);
+    return new globalThis.ReadableStream({
+      type: 'bytes',
+      async pull (ctrl) {
+        const chunk = await it.next()
+        chunk.done ? ctrl.close() : ctrl.enqueue(chunk.value)
+      },
 
-		const span = Math.max(relativeEnd - relativeStart, 0);
-		const parts = this.#parts;
-		const blobParts = [];
-		let added = 0;
+      async cancel () {
+        await it.return()
+      }
+    })
+  }
 
-		for (const part of parts) {
-			// don't add the overflow to new blobParts
-			if (added >= span) {
-				break;
-			}
+  /**
+   * The Blob interface's slice() method creates and returns a
+   * new Blob object which contains data from a subset of the
+   * blob on which it's called.
+   *
+   * @param {number} [start]
+   * @param {number} [end]
+   * @param {string} [type]
+   */
+  slice (start = 0, end = this.size, type = '') {
+    const { size } = this
 
-			const size = ArrayBuffer.isView(part) ? part.byteLength : part.size;
-			if (relativeStart && size <= relativeStart) {
-				// Skip the beginning and change the relative
-				// start & end position as we skip the unwanted parts
-				relativeStart -= size;
-				relativeEnd -= size;
-			} else {
-				let chunk
-				if (ArrayBuffer.isView(part)) {
-					chunk = part.subarray(relativeStart, Math.min(size, relativeEnd));
-					added += chunk.byteLength
-				} else {
-					chunk = part.slice(relativeStart, Math.min(size, relativeEnd));
-					added += chunk.size
-				}
-				blobParts.push(chunk);
-				relativeStart = 0; // All next sequential parts should start at 0
-			}
-		}
+    let relativeStart = start < 0 ? Math.max(size + start, 0) : Math.min(start, size)
+    let relativeEnd = end < 0 ? Math.max(size + end, 0) : Math.min(end, size)
 
-		const blob = new Blob([], {type: String(type).toLowerCase()});
-		blob.#size = span;
-		blob.#parts = blobParts;
+    const span = Math.max(relativeEnd - relativeStart, 0)
+    const parts = this.#parts
+    const blobParts = []
+    let added = 0
 
-		return blob;
-	}
+    for (const part of parts) {
+      // don't add the overflow to new blobParts
+      if (added >= span) {
+        break
+      }
 
-	get [Symbol.toStringTag]() {
-		return 'Blob';
-	}
+      const size = ArrayBuffer.isView(part) ? part.byteLength : part.size
+      if (relativeStart && size <= relativeStart) {
+        // Skip the beginning and change the relative
+        // start & end position as we skip the unwanted parts
+        relativeStart -= size
+        relativeEnd -= size
+      } else {
+        let chunk
+        if (ArrayBuffer.isView(part)) {
+          chunk = part.subarray(relativeStart, Math.min(size, relativeEnd))
+          added += chunk.byteLength
+        } else {
+          chunk = part.slice(relativeStart, Math.min(size, relativeEnd))
+          added += chunk.size
+        }
+        relativeEnd -= size
+        blobParts.push(chunk)
+        relativeStart = 0 // All next sequential parts should start at 0
+      }
+    }
 
-	static [Symbol.hasInstance](object) {
-		return (
-			object &&
-			typeof object === 'object' &&
-			typeof object.constructor === 'function' &&
-			(
-				typeof object.stream === 'function' ||
-				typeof object.arrayBuffer === 'function'
-			) &&
-			/^(Blob|File)$/.test(object[Symbol.toStringTag])
-		);
-	}
+    const blob = new Blob([], { type: String(type).toLowerCase() })
+    blob.#size = span
+    blob.#parts = blobParts
+
+    return blob
+  }
+
+  get [Symbol.toStringTag] () {
+    return 'Blob'
+  }
+
+  static [Symbol.hasInstance] (object) {
+    return (
+      object &&
+      typeof object === 'object' &&
+      typeof object.constructor === 'function' &&
+      (
+        typeof object.stream === 'function' ||
+        typeof object.arrayBuffer === 'function'
+      ) &&
+      /^(Blob|File)$/.test(object[Symbol.toStringTag])
+    )
+  }
 }
 
 Object.defineProperties(_Blob.prototype, {
-	size: {enumerable: true},
-	type: {enumerable: true},
-	slice: {enumerable: true}
-});
+  size: { enumerable: true },
+  type: { enumerable: true },
+  slice: { enumerable: true }
+})
 
 /** @type {typeof globalThis.Blob} */
-const Blob = _Blob;
+const Blob = _Blob
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (Blob);
 
 
