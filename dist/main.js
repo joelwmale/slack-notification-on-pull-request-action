@@ -27,113 +27,144 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-Object.defineProperty(exports, "__esModule", { value: true });
-const core = __importStar(require("@actions/core"));
-const fetch = require('node-fetch');
-function run() {
-    return __awaiter(this, void 0, void 0, function* () {
-        const slackWebhookUrl = core.getInput('SLACK_WEBHOOK_URL') ? core.getInput('SLACK_WEBHOOK_URL') : process.env.SLACK_WEBHOOK_URL;
-        const slackChannel = core.getInput('SLACK_CHANNEL') ? core.getInput('SLACK_CHANNEL') : 'general';
-        const slackUsername = core.getInput('SLACK_USERNAME') ? core.getInput('SLACK_USERNAME') : 'SlackNotifications';
-        const pullRequestNumber = core.getInput('PULL_REQUEST_NUMBER') ? core.getInput('PULL_REQUEST_NUMBER') : process.env.PULL_REQUEST_NUMBER;
-        const pullRequestTitle = core.getInput('PULL_REQUEST_TITLE') ? core.getInput('PULL_REQUEST_TITLE') : process.env.PULL_REQUEST_TITLE;
-        const pullRequestUrl = core.getInput('PULL_REQUEST_URL') ? core.getInput('PULL_REQUEST_URL') : process.env.PULL_REQUEST_URL;
-        const pullRequestAuthor = core.getInput('PULL_REQUEST_AUTHOR') ? core.getInput('PULL_REQUEST_AUTHOR') : process.env.PULL_REQUEST_AUTHOR;
-        const pullRequestAuthorIconUrl = core.getInput('PULL_REQUEST_AUTHOR_ICON_URL') ? core.getInput('PULL_REQUEST_AUTHOR_ICON_URL') : process.env.PULL_REQUEST_AUTHOR_ICON_URL;
-        // validate that we have a slack webhook url
-        if (!slackWebhookUrl) {
-            core.setFailed('A slack webhook url is required to run this action.');
-            // error
-            throw new Error('A slack webhook url is required to run this action.');
-        }
-        // initial info
-        core.info(`Sending slack notification to ${slackWebhookUrl}`);
-        // debug start
-        core.debug(new Date().toTimeString()); // debug is only output if you set the secret `ACTIONS_RUNNER_DEBUG` to true
-        const payload = JSON.stringify({
-            channel: slackChannel,
-            username: slackUsername,
-            attachments: [
-                {
-                    color: "#f74ea1",
-                    blocks: [
-                        {
-                            type: "section",
-                            block_id: "pull_request_details",
-                            text: {
-                                type: "mrkdwn",
-                                text: `*<${pullRequestUrl}|[${pullRequestNumber}] ${pullRequestTitle}>*`
-                            }
-                        },
-                        {
-                            type: "context",
-                            block_id: "author",
-                            elements: [
-                                {
-                                    type: "image",
-                                    image_url: pullRequestAuthorIconUrl,
-                                    alt_text: "images"
-                                },
-                                {
-                                    type: "mrkdwn",
-                                    text: pullRequestAuthor
-                                }
-                            ]
-                        },
-                        {
-                            type: "actions",
-                            elements: [
-                                {
-                                    type: "button",
-                                    text: {
-                                        type: "plain_text",
-                                        text: "View Pull Request",
-                                        emoji: true
-                                    },
-                                    value: pullRequestTitle,
-                                    url: pullRequestUrl,
-                                    action_id: "actionId-0",
-                                    style: "primary"
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
-        });
-        // make the request
-        make(slackWebhookUrl, payload)
-            .then(res => {
-            // if the status code is not 2xx
-            if (res.status >= 400) {
-                // throw an error
-                error(res.status);
-                return;
+var __generator = (this && this.__generator) || function (thisArg, body) {
+    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
+    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
+    function verb(n) { return function (v) { return step([n, v]); }; }
+    function step(op) {
+        if (f) throw new TypeError("Generator is already executing.");
+        while (_) try {
+            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
+            if (y = 0, t) op = [op[0] & 2, t.value];
+            switch (op[0]) {
+                case 0: case 1: t = op; break;
+                case 4: _.label++; return { value: op[1], done: false };
+                case 5: _.label++; y = op[1]; op = [0]; continue;
+                case 7: op = _.ops.pop(); _.trys.pop(); continue;
+                default:
+                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
+                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
+                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
+                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
+                    if (t[2]) _.ops.pop();
+                    _.trys.pop(); continue;
             }
-            // output the status
-            core.setOutput('statusCode', res.status);
-            // report on the status code
-            core.info(`Received status code: ${res.status}`);
-            // debug end
-            core.info(new Date().toTimeString());
-        })
-            .catch(err => {
-            error(err.status);
-            return;
+            op = body.call(thisArg, _);
+        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
+        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
+    }
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+var core = __importStar(require("@actions/core"));
+var fetch = require('node-fetch');
+function run() {
+    return __awaiter(this, void 0, void 0, function () {
+        var slackWebhookUrl, slackChannel, slackUsername, pullRequestNumber, pullRequestTitle, pullRequestUrl, pullRequestAuthor, pullRequestAuthorIconUrl, payload;
+        return __generator(this, function (_a) {
+            slackWebhookUrl = core.getInput('SLACK_WEBHOOK_URL') ? core.getInput('SLACK_WEBHOOK_URL') : process.env.SLACK_WEBHOOK_URL;
+            slackChannel = core.getInput('SLACK_CHANNEL') ? core.getInput('SLACK_CHANNEL') : 'general';
+            slackUsername = core.getInput('SLACK_USERNAME') ? core.getInput('SLACK_USERNAME') : 'SlackNotifications';
+            pullRequestNumber = core.getInput('PULL_REQUEST_NUMBER') ? core.getInput('PULL_REQUEST_NUMBER') : process.env.PULL_REQUEST_NUMBER;
+            pullRequestTitle = core.getInput('PULL_REQUEST_TITLE') ? core.getInput('PULL_REQUEST_TITLE') : process.env.PULL_REQUEST_TITLE;
+            pullRequestUrl = core.getInput('PULL_REQUEST_URL') ? core.getInput('PULL_REQUEST_URL') : process.env.PULL_REQUEST_URL;
+            pullRequestAuthor = core.getInput('PULL_REQUEST_AUTHOR') ? core.getInput('PULL_REQUEST_AUTHOR') : process.env.PULL_REQUEST_AUTHOR;
+            pullRequestAuthorIconUrl = core.getInput('PULL_REQUEST_AUTHOR_ICON_URL') ? core.getInput('PULL_REQUEST_AUTHOR_ICON_URL') : process.env.PULL_REQUEST_AUTHOR_ICON_URL;
+            // validate that we have a slack webhook url
+            if (!slackWebhookUrl) {
+                core.setFailed('A slack webhook url is required to run this action.');
+                // error
+                throw new Error('A slack webhook url is required to run this action.');
+            }
+            // initial info
+            core.info("Sending slack notification to ".concat(slackWebhookUrl));
+            // debug start
+            core.debug(new Date().toTimeString()); // debug is only output if you set the secret `ACTIONS_RUNNER_DEBUG` to true
+            payload = JSON.stringify({
+                channel: slackChannel,
+                username: slackUsername,
+                attachments: [
+                    {
+                        color: "#f74ea1",
+                        blocks: [
+                            {
+                                type: "section",
+                                block_id: "pull_request_details",
+                                text: {
+                                    type: "mrkdwn",
+                                    text: "*<".concat(pullRequestUrl, "|[").concat(pullRequestNumber, "] ").concat(pullRequestTitle, ">*")
+                                }
+                            },
+                            {
+                                type: "context",
+                                block_id: "author",
+                                elements: [
+                                    {
+                                        type: "image",
+                                        image_url: pullRequestAuthorIconUrl,
+                                        alt_text: "images"
+                                    },
+                                    {
+                                        type: "mrkdwn",
+                                        text: pullRequestAuthor
+                                    }
+                                ]
+                            },
+                            {
+                                type: "actions",
+                                elements: [
+                                    {
+                                        type: "button",
+                                        text: {
+                                            type: "plain_text",
+                                            text: "View Pull Request",
+                                            emoji: true
+                                        },
+                                        value: pullRequestTitle,
+                                        url: pullRequestUrl,
+                                        action_id: "actionId-0",
+                                        style: "primary"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            });
+            // make the request
+            make(slackWebhookUrl, payload)
+                .then(function (res) {
+                // if the status code is not 2xx
+                if (res.status >= 400) {
+                    // throw an error
+                    error(res.status);
+                    return;
+                }
+                // output the status
+                core.setOutput('statusCode', res.status);
+                // report on the status code
+                core.info("Received status code: ".concat(res.status));
+                // debug end
+                core.info(new Date().toTimeString());
+            })
+                .catch(function (err) {
+                error(err.status);
+                return;
+            });
+            return [2 /*return*/];
         });
     });
 }
 function make(url, body) {
-    return new Promise((resolve, reject) => {
-        fetch(url, getOptions('post', body)).then((res) => resolve(res));
+    return new Promise(function (resolve, reject) {
+        fetch(url, getOptions('post', body)).then(function (res) { return resolve(res); });
     });
 }
 function getOptions(method, payload) {
-    const options = {
+    var options = {
         headers: {
             'Content-Type': 'application/json',
         },
-        method
+        method: method
     };
     // set the body
     options.body = JSON.stringify(payload);
@@ -141,8 +172,8 @@ function getOptions(method, payload) {
 }
 function error(statusCode) {
     // set the action to failed
-    core.setFailed(`Received status code: ${statusCode}`);
+    core.setFailed("Received status code: ".concat(statusCode));
     // throw an error
-    throw new Error(`Request failed with status code: ${statusCode}`);
+    throw new Error("Request failed with status code: ".concat(statusCode));
 }
 run();
