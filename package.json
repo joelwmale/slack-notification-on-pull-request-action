@@ -24,6 +24,7 @@
         "request",
         "action"
     ],
+    "type": "module",
     "author": "Joel Male",
     "license": "MIT",
     "dependencies": {
