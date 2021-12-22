@@ -1,27 +1,23 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.http = void 0;
-var fetch = require('node-fetch');
-var Http = (function () {
-    function Http() {
-    }
-    Http.prototype.make = function (url, body) {
-        var _this = this;
-        return new Promise(function (resolve, reject) {
-            fetch(url, _this.getOptions('post', body)).then(function (res) { return resolve(res); });
+const fetch = require('node-fetch');
+class Http {
+    make(url, body) {
+        return new Promise((resolve, reject) => {
+            fetch(url, this.getOptions('post', body)).then((res) => resolve(res));
         });
-    };
-    Http.prototype.getOptions = function (method, payload) {
-        var options = {
+    }
+    getOptions(method, payload) {
+        const options = {
             headers: {
                 'Content-Type': 'application/json',
             },
-            method: method
+            method
         };
+        // set the body
         options.body = JSON.stringify(payload);
         return options;
-    };
-    return Http;
-}());
+    }
+}
 exports.http = new Http();
-//# sourceMappingURL=http.js.map
