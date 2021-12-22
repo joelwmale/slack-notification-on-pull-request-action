@@ -54,7 +54,7 @@ function run() {
                 core.setFailed('A slack webhook url is required to run this action.');
                 throw new Error('A slack webhook url is required to run this action.');
             }
-            core.info("Sending slack notification to " + slackWebhookUrl);
+            core.info("Sending slack notification to ".concat(slackWebhookUrl));
             core.debug(new Date().toTimeString());
             payload = JSON.stringify({
                 channel: slackChannel,
@@ -68,7 +68,7 @@ function run() {
                                 block_id: "pull_request_details",
                                 text: {
                                     type: "mrkdwn",
-                                    text: "*<" + pullRequestUrl + "|[" + pullRequestNumber + "] " + pullRequestTitle + ">*"
+                                    text: "*<".concat(pullRequestUrl, "|[").concat(pullRequestNumber, "] ").concat(pullRequestTitle, ">*")
                                 }
                             },
                             {
@@ -115,7 +115,7 @@ function run() {
                     return;
                 }
                 core.setOutput('statusCode', res.status);
-                core.info("Received status code: " + res.status);
+                core.info("Received status code: ".concat(res.status));
                 core.info(new Date().toTimeString());
             })
                 .catch(function (err) {
@@ -127,8 +127,8 @@ function run() {
     });
 }
 function error(statusCode) {
-    core.setFailed("Received status code: " + statusCode);
-    throw new Error("Request failed with status code: " + statusCode);
+    core.setFailed("Received status code: ".concat(statusCode));
+    throw new Error("Request failed with status code: ".concat(statusCode));
 }
 run();
 //# sourceMappingURL=main.js.map
