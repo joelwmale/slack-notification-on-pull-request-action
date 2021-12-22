@@ -35,7 +35,7 @@ var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _argume
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const core = __importStar(require("@actions/core"));
-const http_1 = require("./http");
+const fetch = require('node-fetch');
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         const slackWebhookUrl = core.getInput('SLACK_WEBHOOK_URL') ? core.getInput('SLACK_WEBHOOK_URL') : process.env.SLACK_WEBHOOK_URL;
@@ -108,8 +108,7 @@ function run() {
             ]
         });
         // make the request
-        http_1.http
-            .make(slackWebhookUrl, payload)
+        make(slackWebhookUrl, payload)
             .then(res => {
             // if the status code is not 2xx
             if (res.status >= 400) {
@@ -129,6 +128,22 @@ function run() {
             return;
         });
     });
+}
+function make(url, body) {
+    return new Promise((resolve, reject) => {
+        fetch(url, getOptions('post', body)).then((res) => resolve(res));
+    });
+}
+function getOptions(method, payload) {
+    const options = {
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        method
+    };
+    // set the body
+    options.body = JSON.stringify(payload);
+    return options;
 }
 function error(statusCode) {
     // set the action to failed
