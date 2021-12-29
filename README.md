@@ -1,4 +1,4 @@
-# 🚀 SLack Notification on Pull Request
+# 🚀 Slack Notification on Pull Request
 
 [![GitHub Release][ico-release]][link-github-release]
 [![License][ico-license]](LICENSE)
